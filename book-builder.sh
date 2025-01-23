@@ -237,17 +237,18 @@ combine-mp3-files () {
 	output I "mp3Combine" "Target - ${mp3Combine}"; log I "mp3Combine: Target - ${mp3Combine}"
 	line_count=$(wc -l < "${mp3FileList}")
 	if [ "$line_count" -gt 1 ]; then
-		ffmpeg -hide_banner -y -v quiet -f concat -safe 0 -i "${mp3FileList}" -c copy "${mp3Combine}" 1> /dev/null 2> >(log-stream)   && output T "mp3Combine" "${mp3Combine}"; log IC "mp3Combine: ${mp3Combine}"	|| { output C "mp3Combine" "${mp3Combine}"; log E "mp3Combine: ${mp3Combine}"; exit 1; }
-#		while read -r file_path; do
-#			file_path=$(echo "${file_path}" | awk -F"'" '{ print $2 }')
-#			cat "$file_path" >> "${mp3Combine}"
-#		done < "${mp3FileList}"
-		output T "mp3Combine" "${mp3Combine}"; log IC "mp3Combine: ${mp3Combine}"
+		if ffmpeg -hide_banner -y -v quiet -stats -f concat -safe 0 -i "${mp3FileList}" -c copy "${mp3Combine}" ; then
+			output T "mp3Combine" "${mp3Combine}"; log IC "mp3Combine: ${mp3Combine}"
+		else
+			output C "mp3Combine" "${mp3Combine}"; log E "mp3Combine: ${mp3Combine}"
+			cat "$log_filename"
+			exit 1
+		fi
 	else
 		output I "mp3Combine" "Single file - Cannot combine."; log I "mp3Combine: Single file - Cannot combine."
 		read -r singleFile < "${mp3FileList}"
 		mp3Combine=$(echo "${singleFile}" | awk -F"'" '{ print $2 }')
-		output T "mp3Combine" "$(basename "${mp3Combine}")"; log IC "mp3Combine: ${mp3Combine}"
+		output T "mp3Combine" "${mp3Combine}"; log IC "mp3Combine: ${mp3Combine}"
 	fi
 }
 
@@ -257,7 +258,12 @@ combine-mp3-files () {
 convert-mp4-file () {
 	output I "mp4Convert" "Source - $(basename "${mp3Combine}")"; log I "mp4Convert: Source - ${mp3Combine}"
 	output I "mp4Convert" "Target - ${m4bConvertFileName}"; log I "mp4Convert: Target - ${m4bConvertFileName}"
-	ffmpeg -y -v quiet -i "${mp3Combine}" -c:v copy "${m4bConvertFileName}" 1> /dev/null 2> >(log-stream) && output T "mp4Convert" "${m4bConvertFileName}"; log IC "mp4Convert: ${m4bConvertFileName}"	|| { output T "mp4Convert" "${m4bConvertFileName}"; log IC "mp4Convert: ${m4bConvertFileName}"; exit 1; }
+	if ffmpeg --hide_banner -y -v quiet -stats -i "${mp3Combine}" -c:v copy "${m4bConvertFileName}" ; then
+		output T "mp4Convert" "${m4bConvertFileName}"; log IC "mp4Convert: ${m4bConvertFileName}"
+	else
+	 output T "mp4Convert" "${m4bConvertFileName}"; log IC "mp4Convert: ${m4bConvertFileName}"
+	 exit 1
+	fi
 }
 
 #######################################
@@ -368,15 +374,15 @@ process-Book () {
 
 	banner "Converting to MP4.."
 	convert-mp4-file
-#
-#	banner "Adding metadata to file.."
-#	add-Metadata
-#
-#	banner "Copying M4B.."
-#	copy-M4B
-#
-#	banner "Cleaning up files.."
-#	clean-Up
+
+	banner "Adding metadata to file.."
+	add-Metadata
+
+	banner "Copying M4B.."
+	copy-M4B
+
+	banner "Cleaning up files.."
+	clean-Up
 	folderPath=""
 }
 
