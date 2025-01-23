@@ -149,12 +149,12 @@ create-chapters-from-files() {
   	filename=$(basename "$chapterLine")
   	chapterLine=$(echo "$chapterLine" | awk -F"'" '{ print $2 }')
 		output IY "createChapters" "Generating chapter info: ${filename}"; log I "createChapters: Generating chapter info: ${filename}"
-    duration=$(ffprobe -v quiet -show_entries format="duration" -of default=noprint_wrappers=1:nokey=1 "$chapterLine")
+    fileDuration=$(ffprobe -v quiet -show_entries format="duration" -of default=noprint_wrappers=1:nokey=1 "$chapterLine")
   	{
   		echo "[CHAPTER]"
   		echo "TIMEBASE=1/1"
   		echo "START=${previous_seconds}"
-  		end_time=$(echo "$previous_seconds + $duration" | bc -l)
+  		end_time=$(echo "$previous_seconds + $fileDuration" | bc -l)
   		echo "END=${end_time}"
   		echo "title=$(get-mp3-tag title "$chapterLine")"
     	previous_seconds=$end_time
@@ -187,12 +187,12 @@ create-metadata() {
 		echo "album=${album}" >>"$metaFile"
 		echo "contentgroup=${subtitle}" >>"$metaFile"
 		echo "artist=${artist}" >>"$metaFile"
-		echo "composer=${narrators}" >>"$metaFile"
+		echo "composer=${composer}" >>"$metaFile"
 		echo "genre=Audiobook" >>"$metaFile"
-		echo "date=${publishedYear}" >>"$metaFile"
+		echo "date=${date}" >>"$metaFile"
 		echo "comment=${description}" >>"$metaFile"
 		echo "description=${description}" >>"$metaFile"
-		cat "${folderPath}"/metadata.json | jq -r '.chapters[] | "\(.start),\(.end),\(.title)"' | while read metaLine; do
+		cat "${folderPath}"/metadata.json | jq -r '.chapters[] | "\(.start),\(.end),\(.title)"' | while read -r metaLine; do
 			{
 			echo "[CHAPTER]"
 			echo "TIMEBASE=1/1"
@@ -252,6 +252,8 @@ combine-mp3-files () {
 		wait $combinePID
 		if [ "$?" -eq 0 ] ; then
 			output T "mp3Combine" "${mp3Combine}"; log IC "mp3Combine: ${mp3Combine}"
+	    combineDuration=$(ffprobe -v quiet -show_entries format="duration" -of default=noprint_wrappers=1:nokey=1 -sexagesimal "${mp3Combine}")
+			output T "mp3Combine" "Duration - ${combineDuration}"; log IC "mp3Combine: Duration - ${combineDuration}"
 		else
 			output C "mp3Combine" "${mp3Combine}"; log E "mp3Combine: ${mp3Combine}"
 			cat "$log_filename"
@@ -262,6 +264,8 @@ combine-mp3-files () {
 		read -r singleFile < "${mp3FileList}"
 		mp3Combine=$(echo "${singleFile}" | awk -F"'" '{ print $2 }')
 		output T "mp3Combine" "${mp3Combine}"; log IC "mp3Combine: ${mp3Combine}"
+    combineDuration=$(ffprobe -v quiet -show_entries format="duration" -of default=noprint_wrappers=1:nokey=1 -sexagesimal "${mp3Combine}")
+		output T "mp3Combine" "Duration - ${combineDuration}"; log IC "mp3Combine: Duration - ${combineDuration}"
 	fi
 #set +x
 }
@@ -294,10 +298,10 @@ convert-mp4-file () {
 add-Metadata () {
 	if [ -n "${album}" ] && [ -n "${artist}" ]; then
 		m4bFileName="${artist} - ${album}.m4b"
-		m4bFileName=$(echo "${m4bFileName//[\"\'\`]/}")
+		m4bFileName="${m4bFileName//[\"\'\`]/}"
 	else
 		m4bFileName="${bookName}.m4b"
-		m4bFileName=$(echo "${m4bFileName//[\"\'\`]/}")
+		m4bFileName="${m4bFileName//[\"\'\`]/}"
 	fi
 	output I "addMetadata" "metadata -> ${m4bFileName}"; log I "addMetadata: metadata -> ${m4bFileName}"
 	if [ -n "${coverFileName}" ]; then
@@ -370,49 +374,43 @@ clean-Up () {
 #######################################
 # Process book directory passed by process-Dirs
 ####################################### 
-process-Book () {
-	if [ "$cleanDirCount" -gt 0 ]; then
-		while read -r folderPath; do	
-			bookName=$(basename "${folderPath}")
-			bookName=$(echo "${bookName//[\"\'\`]/}")
+process-Books () {
+		bookName=$(basename "${folderPath}")
+		bookName="${bookName//[\"\'\`]/}"
+	
+		# Output files
+		mp3FileList="${bookName}.files.txt"
+		metaFile="${bookName}.meta"
+		mp3Combine="${bookName}.combine.mp3"
+		m4bConvertFileName="${bookName}.converted.m4a"
+		m4bFileName=""
+	
+		banner "Starting conversion for:${CYAN} ${bookName}${NC}"
+		echo "${folderPath}"
+	
+		banner "Building File List.."
+		build-file-list "${folderPath}"
+	
+		banner "Checking for Cover file.."
+		check-for-cover
 		
-			# Output files
-			mp3FileList="${bookName}.files.txt"
-			metaFile="${bookName}.meta"
-			mp3Combine="${bookName}.combine.mp3"
-			m4bConvertFileName="${bookName}.converted.m4a"
-			m4bFileName=""
-		
-			banner "Starting conversion for: ${CYAN}${bookName}${NC}"
-			echo $folderPath
-		
-			banner "Building File List.."
-			build-file-list "${folderPath}"
-		
-			banner "Checking for Cover file.."
-			check-for-cover
-			
-			banner "Generating metadata for ffmpeg.."
-			create-metadata
-		
-			banner "Combining MP3 files.."
-			combine-mp3-files
-		
-			banner "Converting to MP4.."
-			convert-mp4-file
-		
-			banner "Adding metadata to file.."
-			add-Metadata
-		
-			banner "Copying M4B.."
-			copy-M4B
-		
-			banner "Cleaning up files.."
-			clean-Up
-		done < cleanDirs.txt
-	else
-		output T "processDirs" "No directories to be processed"; log I "processDirs: No directories to be processed"
-	fi
+		banner "Generating metadata for ffmpeg.."
+		create-metadata
+	
+		banner "Combining MP3 files.."
+		combine-mp3-files
+	
+		banner "Converting to MP4.."
+		convert-mp4-file
+	
+		banner "Adding metadata to file.."
+		add-Metadata
+	
+		banner "Copying M4B.."
+		copy-M4B
+	
+		banner "Cleaning up files.."
+		clean-Up
 }
 
 #######################################
@@ -425,16 +423,25 @@ process-Dirs () {
 	banner "Processing: ${inputPath}"
 
 	find "${inputPath}" -type f -name "*.mp3" -exec dirname {} \; | sort -u > mp3Dirs.txt
-	mp3DirCount=$(wc -l < mp3Dirs.txt)
+	#mp3DirCount=$(wc -l < mp3Dirs.txt)
 	#output T "processDirs" "All book directories: ${mp3DirCount}"; log I "processDirs: Book directories: ${mp3DirCount}"
 
 	find "${inputPath}" -type f -name "*.m4b" -exec dirname {} \; | sort -u > m4bDirs.txt
-	m4bDirCount=$(wc -l < m4bDirs.txt)
+	#m4bDirCount=$(wc -l < m4bDirs.txt)
 	#output T "processDirs" "Book directories with existing m4b(Will be skipped): ${m4bDirCount}"; log I "processDirs: Book directories: ${m4bDirCount}"
 
 	grep -v -x -f m4bDirs.txt mp3Dirs.txt > cleanDirs.txt
 	cleanDirCount=$(wc -l < cleanDirs.txt)
-	output T "processDirs" "Book directories to be processed: ${cleanDirCount}"; log I "processDirs: Book directories: ${cleanDirCount}"
+
+	if [ "$cleanDirCount" -gt 0 ]; then
+		output T "processDirs" "Book directories to be processed: ${cleanDirCount}"; log I "processDirs: Book directories: ${cleanDirCount}"
+		while IFS='' read -r folderPath; do	
+			process-Books "${folderPath}"
+		done <cleanDirs.txt
+		output T "processBooks" "All book directories processed"; log I "All book directories processed"
+	else
+		output T "processDirs" "No directories to be processed"; log I "processDirs: No directories to be processed"
+	fi
 
 }
 
@@ -454,8 +461,8 @@ fi
 # Check if the correct number of arguments is provided
 
 if [ -d "${1}" ]; then
-		echo "Input ${1}"
-		process-Dirs "${1}" && process-Book
+		echo "Processing path: ${1}"
+		process-Dirs "${1}"
 else
 		echo "Invalid path specified."
 		display-help
