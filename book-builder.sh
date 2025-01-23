@@ -237,7 +237,10 @@ combine-mp3-files () {
 	output I "mp3Combine" "Target - ${mp3Combine}"; log I "mp3Combine: Target - ${mp3Combine}"
 	line_count=$(wc -l < "${mp3FileList}")
 	if [ "$line_count" -gt 1 ]; then
-		if ffmpeg -hide_banner -y -v quiet -stats -f concat -safe 0 -i "${mp3FileList}" -c copy "${mp3Combine}" ; then
+		ffmpeg -hide_banner -y -v quiet -stats -f concat -safe 0 -i "${mp3FileList}" -c copy "${mp3Combine}" &
+		combinePID=$!
+		wait $combinePID
+		if [ "$?" -eq 0 ] ; then
 			output T "mp3Combine" "${mp3Combine}"; log IC "mp3Combine: ${mp3Combine}"
 		else
 			output C "mp3Combine" "${mp3Combine}"; log E "mp3Combine: ${mp3Combine}"
@@ -248,21 +251,30 @@ combine-mp3-files () {
 		output I "mp3Combine" "Single file - Cannot combine."; log I "mp3Combine: Single file - Cannot combine."
 		read -r singleFile < "${mp3FileList}"
 		mp3Combine=$(echo "${singleFile}" | awk -F"'" '{ print $2 }')
+		mp3Combine=$(basename "${mp3Combine}")
 		output T "mp3Combine" "${mp3Combine}"; log IC "mp3Combine: ${mp3Combine}"
 	fi
 }
 
 #######################################
-# Convert concatenated mp3 file to m4b
+# Convert concatenated mp3 file to m4a
 ####################################### 
 convert-mp4-file () {
-	output I "mp4Convert" "Source - $(basename "${mp3Combine}")"; log I "mp4Convert: Source - ${mp3Combine}"
+	output I "mp4Convert" "Source - ${mp3Combine}"; log I "mp4Convert: Source - ${mp3Combine}"
 	output I "mp4Convert" "Target - ${m4bConvertFileName}"; log I "mp4Convert: Target - ${m4bConvertFileName}"
-	if ffmpeg --hide_banner -y -v quiet -stats -i "${mp3Combine}" -c:v copy "${m4bConvertFileName}" ; then
-		output T "mp4Convert" "${m4bConvertFileName}"; log IC "mp4Convert: ${m4bConvertFileName}"
+	if [ -f "${mp3Combine}" ] ; then
+#		ffmpeg -hide_banner -y -v quiet -stats -i "${mp3Combine}" -c:v copy "${m4bConvertFileName}" &
+#		convertPID=$!
+		ffmpeg -y -v quiet -stats -i "${mp3Combine}" -c:v copy "${m4bConvertFileName}"
+		if [ "$?" -eq 0 ] ; then
+			output T "mp4Convert" "${m4bConvertFileName}"; log IC "mp4Convert: ${m4bConvertFileName}"
+		else
+			output C "mp4Convert" "${m4bConvertFileName}"; log E "mp4Convert: ${m4bConvertFileName}"
+			exit 1
+		fi
 	else
-	 output T "mp4Convert" "${m4bConvertFileName}"; log IC "mp4Convert: ${m4bConvertFileName}"
-	 exit 1
+		output C "mp4Convert" "${m4bConvertFileName}"; log E "mp4Convert: ${m4bConvertFileName}"
+	 	exit 1
 	fi
 }
 
@@ -286,7 +298,7 @@ add-Metadata () {
 			exit 1
 		fi
 	else
-		if ffmpeg -y -v quiet -stats -i "${m4bConvertFileName}" -i "${metaFile}" -map 0:a -map_metadata 1 -map 2:v -disposition:v:0 attached_pic -c copy -movflags +faststart "${m4bFileName}" 1> /dev/null 2> >(log-stream); then
+		if ffmpeg -y -v quiet -stats -i "${m4bConvertFileName}" -i "${metaFile}" -map 0 -map_metadata 1 -c copy "${m4bFileName}" ; then
 			output T "addMetadata" "${m4bFileName}"; log IC "addMetadata: ${m4bFileName}"
 		else
 			output C "addMetadata" "${m4bFileName}"; log E "addMetadata: ${m4bFileName}"
@@ -352,14 +364,17 @@ process-Book () {
 	folderPath="${1}"
 	bookName=$(basename "${folderPath}")
 	bookName=$(echo "${bookName//[\"\'\`]/}")
+
 	# Output files
 	mp3FileList="${bookName}.files.txt"
 	metaFile="${bookName}.meta"
 	mp3Combine="${bookName}.combine.mp3"
 	m4bConvertFileName="${bookName}.converted.m4a"
 	m4bFileName=""
+
 	banner "Starting conversion for: ${CYAN}${bookName}${NC}"
-	
+	echo $folderPath
+
 	banner "Building File List.."
 	build-file-list "${folderPath}"
 
@@ -383,7 +398,6 @@ process-Book () {
 
 	banner "Cleaning up files.."
 	clean-Up
-	folderPath=""
 }
 
 #######################################
