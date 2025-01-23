@@ -172,17 +172,26 @@ create-metadata() {
 	if [ -f "${folderPath}"/metadata.json ]; then
 		banner "Parsing metadata from ABS json file"
 		output T "parseABSmetadata" "metadata.json"; log IF "parseABSmetadata: ${bookName}/metadata.json"
+
+		# Pull tags from mp3 file
+	  album=$(cat "${folderPath}"/metadata.json | jq -r '.title')
+		subtitle=$(cat "${folderPath}"/metadata.json | jq -r '.subtitle')
+		artist=$(cat "${folderPath}"/metadata.json | jq -r '.authors[]')
+		composer=$(cat "${folderPath}"/metadata.json | jq -r '.narrators[]')
+		genre="Audiobook"
+		date=$(cat "${folderPath}"/metadata.json | jq -r '.publishedYear')
+		description=$(cat "${folderPath}"/metadata.json | jq -r '.description')
+
 		echo ";FFMETADATA1" >"$metaFile"
-		local album
 		echo "title=$(cat "${folderPath}"/metadata.json | jq -r '.title')" >>"$metaFile"
-		echo "album=$(cat "${folderPath}"/metadata.json | jq -r '.title')" >>"$metaFile"
-		echo "contentgroup=$(cat "${folderPath}"/metadata.json | jq -r '.subtitle')" >>"$metaFile"
-		echo "artist=$(cat "${folderPath}"/metadata.json | jq -r '.authors[]')" >>"$metaFile"
-		echo "composer=$(cat "${folderPath}"/metadata.json | jq -r '.narrators[]')" >>"$metaFile"
+		echo "album=${album}" >>"$metaFile"
+		echo "contentgroup=${subtitle}" >>"$metaFile"
+		echo "artist=${artist}" >>"$metaFile"
+		echo "composer=${narrators}" >>"$metaFile"
 		echo "genre=Audiobook" >>"$metaFile"
-		echo "date=$(cat "${folderPath}"/metadata.json | jq -r '.publishedYear')" >>"$metaFile"
-		echo "comment=$(cat "${folderPath}"/metadata.json | jq -r '.description')" >>"$metaFile"
-		echo "description=$(cat "${folderPath}"/metadata.json | jq -r '.description')" >>"$metaFile"
+		echo "date=${publishedYear}" >>"$metaFile"
+		echo "comment=${description}" >>"$metaFile"
+		echo "description=${description}" >>"$metaFile"
 		cat "${folderPath}"/metadata.json | jq -r '.chapters[] | "\(.start),\(.end),\(.title)"' | while read metaLine; do
 			{
 			echo "[CHAPTER]"
@@ -251,7 +260,6 @@ combine-mp3-files () {
 		output I "mp3Combine" "Single file - Cannot combine."; log I "mp3Combine: Single file - Cannot combine."
 		read -r singleFile < "${mp3FileList}"
 		mp3Combine=$(echo "${singleFile}" | awk -F"'" '{ print $2 }')
-		mp3Combine=$(basename "${mp3Combine}")
 		output T "mp3Combine" "${mp3Combine}"; log IC "mp3Combine: ${mp3Combine}"
 	fi
 }
