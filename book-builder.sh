@@ -11,20 +11,6 @@
 ##    DO NOT EDIT BELOW THIS LINE    ##
 ####################################### 
 
-#######################################
-# Formatted message logger
-####################################### 
-__error_trapper() {
-  local parent_lineno="$1"
-  local code="$2"
-  local commands="$3"
-  echo "error exit status $code, at file $0 on or near line $parent_lineno: $commands"
-}
-trap '__error_trapper "${LINENO}/${BASH_LINENO}" "$?" "$BASH_COMMAND"' ERR
-
-set -euE -o pipefail
-shopt -s failglob
-
 full_filename=$(basename -- "$0")
 short_filename="${full_filename%.*}"
 log_filename="log-${short_filename}.log"
@@ -96,6 +82,19 @@ output () {
 		I) printf "   %b  \e[1m%b\e[0m %s\\n" "${INFO}" "${category}:" "${NC}${string}${NC}" ;;
 		IY) printf "   %b  \e[1m%b\e[0m %s\\n" "${INFO}" "${category}:" "${CYAN}${string}${NC}" ;;
 	esac
+}
+
+#######################################
+# Check for dependencies 
+####################################### 
+check-dependency() {
+	local dependency="$1"
+	if command -v "$dependency" 1> /dev/null 2> >(log-stream); then
+		output T "checkDependency" "$dependency"; log IF "checkDependency: $dependency"
+	else
+		output C "checkDependency" "$dependency not found"; log ENF "checkDependency: $dependency"
+	  exit 1
+  fi
 }
 
 #######################################
@@ -288,9 +287,10 @@ convert-mp4-file () {
 	output I "mp4Convert" "Source - ${mp3Combine}"; log I "mp4Convert: Source - ${mp3Combine}"
 	output I "mp4Convert" "Target - ${m4bConvertFileName}"; log I "mp4Convert: Target - ${m4bConvertFileName}"
 	if [ -f "${mp3Combine}" ] ; then
-#		ffmpeg -hide_banner -y -v quiet -stats -i "${mp3Combine}" -c:v copy "${m4bConvertFileName}" &
-#		convertPID=$!
-		ffmpeg -y -v quiet -stats -i "${mp3Combine}" -c:v copy "${m4bConvertFileName}"
+		#ffmpeg -y -v quiet -stats -i "${mp3Combine}" -c:v copy "${m4bConvertFileName}"
+		ffmpeg -hide_banner -y -v quiet -stats -i "${mp3Combine}" -c:v copy "${m4bConvertFileName}" &
+		convertPID=$!
+		wait $convertPID
 		if [ "$?" -eq 0 ] ; then
 			output T "mp4Convert" "${m4bConvertFileName}"; log IC "mp4Convert: ${m4bConvertFileName}"
 		else
@@ -306,7 +306,7 @@ convert-mp4-file () {
 #######################################
 # Embed metadata in m4b file
 ####################################### 
-add-Metadata () {
+add-metadata () {
 	if [ -n "${album}" ] && [ -n "${artist}" ]; then
 		m4bFileName="${artist} - ${album}.m4b"
 		m4bFileName="${m4bFileName//[\"\'\`]/}"
@@ -316,14 +316,20 @@ add-Metadata () {
 	fi
 	output I "addMetadata" "metadata -> ${m4bFileName}"; log I "addMetadata: metadata -> ${m4bFileName}"
 	if [ -n "${coverFileName}" ]; then
-		if ffmpeg -y -v quiet -stats -i "${m4bConvertFileName}" -i "${metaFile}" -i "${coverFileName}" -map 0:a -map_metadata 1 -map 2:v -disposition:v:0 attached_pic -c copy -movflags +faststart "${m4bFileName}" ; then
+		ffmpeg -y -v quiet -stats -i "${m4bConvertFileName}" -i "${metaFile}" -i "${coverFileName}" -map 0:a -map_metadata 1 -map 2:v -disposition:v:0 attached_pic -c copy -movflags +faststart "${m4bFileName}" &
+		addMetadataPID=$!
+		wait $addMetadataPID
+		if [ "$?" -eq 0 ] ; then
 			output T "addMetadata" "${m4bFileName}"; log IC "addMetadata: ${m4bFileName}"
 		else
 			output C "addMetadata" "${m4bFileName}"; log E "addMetadata: ${m4bFileName}"
 			exit 1
 		fi
 	else
-		if ffmpeg -y -v quiet -stats -i "${m4bConvertFileName}" -i "${metaFile}" -map 0 -map_metadata 1 -c copy "${m4bFileName}" ; then
+		ffmpeg -y -v quiet -stats -i "${m4bConvertFileName}" -i "${metaFile}" -map 0 -map_metadata 1 -c copy "${m4bFileName}" &
+		addMetadataPID=$!
+		wait $addMetadataPID
+		if [ "$?" -eq 0 ] ; then
 			output T "addMetadata" "${m4bFileName}"; log IC "addMetadata: ${m4bFileName}"
 		else
 			output C "addMetadata" "${m4bFileName}"; log E "addMetadata: ${m4bFileName}"
@@ -335,7 +341,7 @@ add-Metadata () {
 #######################################
 # Copy completed m4b file to book folder
 ####################################### 
-copy-M4B () {
+copy-m4b () {
 	if [ -f "${m4bFileName}" ]; then
 		output I "copyM4B" "Source - ${m4bFileName}"; log I "copyM4B: Source - {m4bFileName}"
 		output I "copyM4B" "Target - ${folderPath}"; log I "copyM4B: Target - ${folderPath}"
@@ -354,7 +360,7 @@ copy-M4B () {
 #######################################
 # Cleanup all files used 
 ####################################### 
-clean-Up () {
+clean-up () {
 	if rm "${mp3FileList}" 1> /dev/null 2> >(log-stream) ; then
 		output T "Cleanup" "${mp3FileList}"; log I "Cleanup: ${mp3FileList}"
 	else
@@ -383,9 +389,9 @@ clean-Up () {
 }
 
 #######################################
-# Process book directory passed by process-Dirs
+# Process book directory passed by process-dirs
 ####################################### 
-process-Books () {
+process-books () {
 		folderPath="${1}"
 		bookName=$(basename "${folderPath}")
 		bookName="${bookName//[\"\'\`]/}"
@@ -415,22 +421,26 @@ process-Books () {
 		convert-mp4-file
 	
 		banner "Adding metadata to file.."
-		add-Metadata
+		add-metadata
 	
 		banner "Copying M4B.."
-		copy-M4B
+		copy-m4b
 	
 		banner "Cleaning up files.."
-		clean-Up
+		clean-up
 }
 
 #######################################
 # Process base directory passed to script
 ####################################### 
-process-Dirs () {
+process-dirs () {
 	inputPath="${1}"
 	#clear
 	rm "$log_filename" 1> /dev/null 2> >(log-stream)
+	banner "Checking for dependencies"
+	check-dependency ffmpeg
+	check-dependency jq
+	
 	banner "Processing: ${inputPath}"
 
 	find "${inputPath}" -type d -exec bash -c '
@@ -447,9 +457,9 @@ process-Dirs () {
 		output T "processDirs" "Book directories to be processed: ${cleanDirCount}"; log I "processDirs: Book directories: ${cleanDirCount}"
 		while IFS= read -r line; do	
 			output T "processDirs" "Processing folder: ${line}"; log I "processDirs: Processing folder: ${line}"
-			process-Books "${line}"
+			process-books "${line}"
 		done < cleanDirs.txt
-		#output T "processBooks" "All book directories processed"; log I "All book directories processed"
+		output I "processBooks" "All book directories processed"; log I "All book directories processed"
 	else
 		output T "processDirs" "No directories to be processed"; log I "processDirs: No directories to be processed"
 	fi
@@ -460,20 +470,8 @@ process-Dirs () {
 ## Main script
 #######################################
 
-if ! command -v ffmpeg 1> /dev/null 2> >(log-stream)
-then
-    echo "ffmpeg could not be found.."
-    echo ""
-    echo "Please verify it is installed properly and try again."
-    echo ""
-    exit 1
-fi
-
-# Check if the correct number of arguments is provided
-
 if [ -d "${1}" ]; then
-		echo "Processing path: ${1}"
-		process-Dirs "${1}"
+		process-dirs "${1}"
 else
 		echo "Invalid path specified."
 		display-help
