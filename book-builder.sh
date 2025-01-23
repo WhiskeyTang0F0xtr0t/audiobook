@@ -11,6 +11,20 @@
 ##    DO NOT EDIT BELOW THIS LINE    ##
 ####################################### 
 
+#######################################
+# Formatted message logger
+####################################### 
+__error_trapper() {
+  local parent_lineno="$1"
+  local code="$2"
+  local commands="$3"
+  echo "error exit status $code, at file $0 on or near line $parent_lineno: $commands"
+}
+trap '__error_trapper "${LINENO}/${BASH_LINENO}" "$?" "$BASH_COMMAND"' ERR
+
+set -euE -o pipefail
+shopt -s failglob
+
 full_filename=$(basename -- "$0")
 short_filename="${full_filename%.*}"
 log_filename="log-${short_filename}.log"
@@ -226,7 +240,6 @@ check-for-cover () {
 # Build list of mp3 files for book folder
 ####################################### 
 build-file-list () {
-	echo "${folderPath}"
 	output I "mp3FileList" "${mp3FileList}"; log I "mp3FileList: ${mp3FileList}"
 	if [ -d "${folderPath}" ] ; then
 		find "${folderPath}" -type f -name "*.mp3" -exec printf "file '%s'\n" {} \; | sort >"$mp3FileList" &&	output T "mp3FileList" "${mp3FileList}"; log IC "mp3FileList: ${mp3FileList}"	
@@ -240,7 +253,6 @@ build-file-list () {
 # Use ffmpeg to concatenate sorted mp3 files
 ####################################### 
 combine-mp3-files () {
-#set -x
 	local line_count
 	local singleFile
 	output I "mp3Combine" "Source - ${mp3FileList}"; log I "mp3Combine: Source - ${mp3FileList}"
@@ -267,7 +279,6 @@ combine-mp3-files () {
     combineDuration=$(ffprobe -v quiet -show_entries format="duration" -of default=noprint_wrappers=1:nokey=1 -sexagesimal "${mp3Combine}")
 		output T "mp3Combine" "Duration - ${combineDuration}"; log IC "mp3Combine: Duration - ${combineDuration}"
 	fi
-#set +x
 }
 
 #######################################
@@ -375,6 +386,7 @@ clean-Up () {
 # Process book directory passed by process-Dirs
 ####################################### 
 process-Books () {
+		folderPath="${1}"
 		bookName=$(basename "${folderPath}")
 		bookName="${bookName//[\"\'\`]/}"
 	
@@ -385,8 +397,7 @@ process-Books () {
 		m4bConvertFileName="${bookName}.converted.m4a"
 		m4bFileName=""
 	
-		banner "Starting conversion for:${CYAN} ${bookName}${NC}"
-		echo "${folderPath}"
+		banner "Starting conversion for:${CYAN} ${folderPath}${NC}"
 	
 		banner "Building File List.."
 		build-file-list "${folderPath}"
@@ -422,23 +433,23 @@ process-Dirs () {
 	rm "$log_filename" 1> /dev/null 2> >(log-stream)
 	banner "Processing: ${inputPath}"
 
-	find "${inputPath}" -type f -name "*.mp3" -exec dirname {} \; | sort -u > mp3Dirs.txt
-	#mp3DirCount=$(wc -l < mp3Dirs.txt)
-	#output T "processDirs" "All book directories: ${mp3DirCount}"; log I "processDirs: Book directories: ${mp3DirCount}"
+	find "${inputPath}" -type d -exec bash -c '
+	  for dir; do
+	    if ls "${dir}"/*.mp3 1> /dev/null 2>&1 && ! ls "${dir}"/*.m4b 1> /dev/null 2>&1; then
+	      echo "${dir}"
+	    fi
+	  done
+	' bash {} + > cleanDirs.txt
 
-	find "${inputPath}" -type f -name "*.m4b" -exec dirname {} \; | sort -u > m4bDirs.txt
-	#m4bDirCount=$(wc -l < m4bDirs.txt)
-	#output T "processDirs" "Book directories with existing m4b(Will be skipped): ${m4bDirCount}"; log I "processDirs: Book directories: ${m4bDirCount}"
-
-	grep -v -x -f m4bDirs.txt mp3Dirs.txt > cleanDirs.txt
 	cleanDirCount=$(wc -l < cleanDirs.txt)
 
 	if [ "$cleanDirCount" -gt 0 ]; then
 		output T "processDirs" "Book directories to be processed: ${cleanDirCount}"; log I "processDirs: Book directories: ${cleanDirCount}"
-		while IFS='' read -r folderPath; do	
-			process-Books "${folderPath}"
-		done <cleanDirs.txt
-		output T "processBooks" "All book directories processed"; log I "All book directories processed"
+		while IFS= read -r line; do	
+			output T "processDirs" "Processing folder: ${line}"; log I "processDirs: Processing folder: ${line}"
+			process-Books "${line}"
+		done < cleanDirs.txt
+		#output T "processBooks" "All book directories processed"; log I "All book directories processed"
 	else
 		output T "processDirs" "No directories to be processed"; log I "processDirs: No directories to be processed"
 	fi
