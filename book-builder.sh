@@ -240,6 +240,7 @@ build-file-list () {
 # Use ffmpeg to concatenate sorted mp3 files
 ####################################### 
 combine-mp3-files () {
+#set -x
 	local line_count
 	local singleFile
 	output I "mp3Combine" "Source - ${mp3FileList}"; log I "mp3Combine: Source - ${mp3FileList}"
@@ -262,6 +263,7 @@ combine-mp3-files () {
 		mp3Combine=$(echo "${singleFile}" | awk -F"'" '{ print $2 }')
 		output T "mp3Combine" "${mp3Combine}"; log IC "mp3Combine: ${mp3Combine}"
 	fi
+#set +x
 }
 
 #######################################
@@ -369,43 +371,48 @@ clean-Up () {
 # Process book directory passed by process-Dirs
 ####################################### 
 process-Book () {
-	folderPath="${1}"
-	bookName=$(basename "${folderPath}")
-	bookName=$(echo "${bookName//[\"\'\`]/}")
-
-	# Output files
-	mp3FileList="${bookName}.files.txt"
-	metaFile="${bookName}.meta"
-	mp3Combine="${bookName}.combine.mp3"
-	m4bConvertFileName="${bookName}.converted.m4a"
-	m4bFileName=""
-
-	banner "Starting conversion for: ${CYAN}${bookName}${NC}"
-	echo $folderPath
-
-	banner "Building File List.."
-	build-file-list "${folderPath}"
-
-	banner "Checking for Cover file.."
-	check-for-cover
-	
-	banner "Generating metadata for ffmpeg.."
-	create-metadata
-
-	banner "Combining MP3 files.."
-	combine-mp3-files
-
-	banner "Converting to MP4.."
-	convert-mp4-file
-
-	banner "Adding metadata to file.."
-	add-Metadata
-
-	banner "Copying M4B.."
-	copy-M4B
-
-	banner "Cleaning up files.."
-	clean-Up
+	if [ "$cleanDirCount" -gt 0 ]; then
+		while read -r folderPath; do	
+			bookName=$(basename "${folderPath}")
+			bookName=$(echo "${bookName//[\"\'\`]/}")
+		
+			# Output files
+			mp3FileList="${bookName}.files.txt"
+			metaFile="${bookName}.meta"
+			mp3Combine="${bookName}.combine.mp3"
+			m4bConvertFileName="${bookName}.converted.m4a"
+			m4bFileName=""
+		
+			banner "Starting conversion for: ${CYAN}${bookName}${NC}"
+			echo $folderPath
+		
+			banner "Building File List.."
+			build-file-list "${folderPath}"
+		
+			banner "Checking for Cover file.."
+			check-for-cover
+			
+			banner "Generating metadata for ffmpeg.."
+			create-metadata
+		
+			banner "Combining MP3 files.."
+			combine-mp3-files
+		
+			banner "Converting to MP4.."
+			convert-mp4-file
+		
+			banner "Adding metadata to file.."
+			add-Metadata
+		
+			banner "Copying M4B.."
+			copy-M4B
+		
+			banner "Cleaning up files.."
+			clean-Up
+		done < cleanDirs.txt
+	else
+		output T "processDirs" "No directories to be processed"; log I "processDirs: No directories to be processed"
+	fi
 }
 
 #######################################
@@ -419,23 +426,16 @@ process-Dirs () {
 
 	find "${inputPath}" -type f -name "*.mp3" -exec dirname {} \; | sort -u > mp3Dirs.txt
 	mp3DirCount=$(wc -l < mp3Dirs.txt)
-	output T "processDirs" "All book directories: ${mp3DirCount}"; log I "processDirs: Book directories: ${mp3DirCount}"
+	#output T "processDirs" "All book directories: ${mp3DirCount}"; log I "processDirs: Book directories: ${mp3DirCount}"
 
 	find "${inputPath}" -type f -name "*.m4b" -exec dirname {} \; | sort -u > m4bDirs.txt
 	m4bDirCount=$(wc -l < m4bDirs.txt)
-	output T "processDirs" "Book directories with existing m4b(Will be skipped): ${m4bDirCount}"; log I "processDirs: Book directories: ${m4bDirCount}"
+	#output T "processDirs" "Book directories with existing m4b(Will be skipped): ${m4bDirCount}"; log I "processDirs: Book directories: ${m4bDirCount}"
 
 	grep -v -x -f m4bDirs.txt mp3Dirs.txt > cleanDirs.txt
 	cleanDirCount=$(wc -l < cleanDirs.txt)
 	output T "processDirs" "Book directories to be processed: ${cleanDirCount}"; log I "processDirs: Book directories: ${cleanDirCount}"
 
-	if [ "$cleanDirCount" -gt 0 ]; then
-		while read -r cleanDir; do
-			process-Book "$cleanDir"
-		done < cleanDirs.txt
-	else
-		output T "processDirs" "No directories to be processed"; log I "processDirs: No directories to be processed"
-fi
 }
 
 #######################################
@@ -453,17 +453,10 @@ fi
 
 # Check if the correct number of arguments is provided
 
-if [ $# -eq 0 ]; then
-	display-help
-	exit 1
-elif [ $# -eq 1 ]; then
-	if [ -d "${1}" ]; then
+if [ -d "${1}" ]; then
 		echo "Input ${1}"
-		process-Dirs "${1}"
-	else
+		process-Dirs "${1}" && process-Book
+else
 		echo "Invalid path specified."
 		display-help
-	fi
-else
-	display-help
 fi
