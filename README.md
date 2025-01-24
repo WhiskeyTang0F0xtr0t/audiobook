@@ -17,6 +17,9 @@ Features:
 - Combine all mp3s in a directory, sorted by name.
 - Convert combined mp3s into m4b file with metata.
 
+> [!NOTE]
+> This does not currently delete the old mp3 files, but I will add the feature in the near future.
+
 # Getting Started
 
 ## Requirements
@@ -39,4 +42,6 @@ mbp16:~ user$
 ```
 
 # Future Plans
-- [ ] TBD
+- [ ] Create a better cleanup function
+- [ ] Add cleanup of old mp3 files after conversion is successful
+- [ ] Add cleanup of *.Dir.txt files
