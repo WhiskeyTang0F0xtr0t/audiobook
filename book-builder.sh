@@ -361,30 +361,11 @@ copy-m4b () {
 # Cleanup all files used 
 ####################################### 
 clean-up () {
-	if rm "${mp3FileList}" 1> /dev/null 2> >(log-stream) ; then
-		output T "Cleanup" "${mp3FileList}"; log I "Cleanup: ${mp3FileList}"
+  local cleanupFile="${1}"
+	if rm "${cleanupFile}" 1> /dev/null 2> >(log-stream) ; then
+		output T "Cleanup" "${cleanupFile}"; log I "Cleanup: ${cleanupFile}"
 	else
-		output C "Cleanup" "${mp3FileList}"; log ENF "Cleanup: ${mp3FileList}"
-	fi
-	if rm "${metaFile}" 1> /dev/null 2> >(log-stream) ; then
-		output T "Cleanup" "${metaFile}"; log I "Cleanup: ${metaFile}"
-	else
-		output C "Cleanup" "${metaFile}"; log ENF "Cleanup: ${metaFile}"
-	fi
-	if rm "${mp3Combine}" 1> /dev/null 2> >(log-stream) ; then
-		output T "Cleanup" "${mp3Combine}"; log I "Cleanup: ${mp3Combine}"
-	else
-		output C "Cleanup" "${mp3Combine}"; log ENF "Cleanup: ${mp3Combine}"
-	fi
-	if rm "${m4bConvertFileName}" 1> /dev/null 2> >(log-stream) ; then
-		output T "Cleanup" "${m4bConvertFileName}"; log I "Cleanup: ${m4bConvertFileName}"
-	else
-		output C "Cleanup" "${m4bConvertFileName}"; log ENF "Cleanup: ${m4bConvertFileName}"
-	fi
-	if rm "${m4bFileName}" 1> /dev/null 2> >(log-stream) ; then
-		output T "Cleanup" "${m4bFileName}"; log I "Cleanup: ${m4bFileName}"
-	else
-		output C "Cleanup" "${m4bFileName}"; log ENF "Cleanup: ${m4bFileName}"
+		output C "Cleanup" "${cleanupFile}"; log ENF "Cleanup: ${cleanupFile}"
 	fi
 }
 
@@ -392,42 +373,49 @@ clean-up () {
 # Process book directory passed by process-dirs
 ####################################### 
 process-books () {
-		folderPath="${1}"
-		bookName=$(basename "${folderPath}")
-		bookName="${bookName//[\"\'\`]/}"
+	folderPath="${1}"
+	bookName=$(basename "${folderPath}")
+	bookName="${bookName//[\"\'\`]/}"
 	
-		# Output files
-		mp3FileList="${bookName}.files.txt"
-		metaFile="${bookName}.meta"
-		mp3Combine="${bookName}.combine.mp3"
-		m4bConvertFileName="${bookName}.converted.m4a"
-		m4bFileName=""
+	# Output files
+	mp3FileList="${bookName}.files.txt"
+	metaFile="${bookName}.meta"
+	mp3Combine="${bookName}.combine.mp3"
+	m4bConvertFileName="${bookName}.converted.m4a"
+	m4bFileName=""
 	
-		banner "Starting conversion for:${CYAN} ${folderPath}${NC}"
+	banner "Starting conversion for:${CYAN} ${folderPath}${NC}"
 	
-		banner "Building File List.."
-		build-file-list "${folderPath}"
+	banner "Building File List.."
+	build-file-list "${folderPath}"
 	
-		banner "Checking for Cover file.."
-		check-for-cover
-		
-		banner "Generating metadata for ffmpeg.."
-		create-metadata
+	banner "Checking for Cover file.."
+	check-for-cover
 	
-		banner "Combining MP3 files.."
-		combine-mp3-files
+	banner "Generating metadata for ffmpeg.."
+	create-metadata
 	
-		banner "Converting to MP4.."
-		convert-mp4-file
+	banner "Combining MP3 files.."
+	combine-mp3-files
 	
-		banner "Adding metadata to file.."
-		add-metadata
+	banner "Converting to MP4.."
+	convert-mp4-file
 	
-		banner "Copying M4B.."
-		copy-m4b
+	banner "Adding metadata to file.."
+	add-metadata
 	
-		banner "Cleaning up files.."
-		clean-up
+	banner "Copying M4B.."
+	copy-m4b
+	
+	banner "Cleaning up files.."
+	clean-up "${mp3FileList}"
+	clean-up "${metaFile}"
+	clean-up "${mp3Combine}"
+	clean-up "${m4bConvertFileName}"
+	clean-up "${m4bFileName}"
+	clean-up cleanDirs.txt
+	clean-up m4bDirs.txt
+	clean-up mp3Dirs.txt
 }
 
 #######################################
