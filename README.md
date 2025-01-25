@@ -50,6 +50,7 @@ mbp16:~ user$
 ```
 
 # Future Plans
-- [X] Create a better cleanup function
+- [ ] Check file and directory names for "bad" characters that ffmpeg will not like.
 - [ ] Add cleanup of old mp3 files after conversion is successful
+- [X] Create a better cleanup function
 - [X] Add cleanup of *.Dir.txt files
