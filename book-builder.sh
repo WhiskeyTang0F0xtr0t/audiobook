@@ -446,8 +446,6 @@ process-dirs () {
 		done < cleanDirs.txt
 		banner "Cleaning up final temp files.."
 		clean-up cleanDirs.txt
-		clean-up m4bDirs.txt
-		clean-up mp3Dirs.txt
 		banner "All book directories processed"
 	else
 		output T "processDirs" "No directories to be processed"; log I "processDirs: No directories to be processed"
