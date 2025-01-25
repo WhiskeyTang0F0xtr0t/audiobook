@@ -43,6 +43,6 @@ mbp16:~ user$
 ```
 
 # Future Plans
-- [ ] Create a better cleanup function
+- [X] Create a better cleanup function
 - [ ] Add cleanup of old mp3 files after conversion is successful
-- [ ] Add cleanup of *.Dir.txt files
+- [X] Add cleanup of *.Dir.txt files
