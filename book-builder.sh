@@ -407,15 +407,12 @@ process-books () {
 	banner "Copying M4B.."
 	copy-m4b
 	
-	banner "Cleaning up files.."
+	banner "Cleaning up book temp files.."
 	clean-up "${mp3FileList}"
 	clean-up "${metaFile}"
 	clean-up "${mp3Combine}"
 	clean-up "${m4bConvertFileName}"
 	clean-up "${m4bFileName}"
-	clean-up cleanDirs.txt
-	clean-up m4bDirs.txt
-	clean-up mp3Dirs.txt
 }
 
 #######################################
@@ -447,7 +444,11 @@ process-dirs () {
 			output T "processDirs" "Processing folder: ${line}"; log I "processDirs: Processing folder: ${line}"
 			process-books "${line}"
 		done < cleanDirs.txt
-		output I "processBooks" "All book directories processed"; log I "All book directories processed"
+		banner "Cleaning up final temp files.."
+		clean-up cleanDirs.txt
+		clean-up m4bDirs.txt
+		clean-up mp3Dirs.txt
+		banner "All book directories processed"
 	else
 		output T "processDirs" "No directories to be processed"; log I "processDirs: No directories to be processed"
 	fi
