@@ -8,7 +8,7 @@
 A script to convert directories of mp3 files to a single m4b per directory and add metadata.
 
 Features:
-- Parse .json file from audiobookshelf if it exsits in the directory.
+- Parse .json file from [audiobookshelf](https://www.audiobookshelf.org) if it exsits in the directory.
 - If the ABS json file is not found
   - Pull tag data from the mp3 files if available.
   - Build chapter marker from mp3 file duration and tagging data.
