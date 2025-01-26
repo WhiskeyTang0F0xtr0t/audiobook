@@ -1,7 +1,7 @@
 > [!WARNING]
 > The script will fail if the file or directory name contains characters that ffpmeg does not like.
 > 
-> IE - ', ", `, Tab, &, #, *
+> IE - ', ", `, Tab, &, #, * \, /, !
 >
 > I'm working on a function to report on these and possibly replace the offending characters.
 
