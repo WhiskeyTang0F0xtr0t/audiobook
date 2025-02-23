@@ -309,10 +309,10 @@ convert-mp4-file () {
 add-metadata () {
 	if [ -n "${album}" ] && [ -n "${artist}" ]; then
 		m4bFileName="${artist} - ${album}.m4b"
-		m4bFileName="${m4bFileName//[\"\'\`]/}"
+		m4bFileName="${m4bFileName//[\"\'\`\/]/}"
 	else
 		m4bFileName="${bookName}.m4b"
-		m4bFileName="${m4bFileName//[\"\'\`]/}"
+		m4bFileName="${m4bFileName//[\"\'\`\/]/}"
 	fi
 	output I "addMetadata" "metadata -> ${m4bFileName}"; log I "addMetadata: metadata -> ${m4bFileName}"
 	if [ -n "${coverFileName}" ]; then
@@ -450,7 +450,6 @@ process-dirs () {
 	else
 		output T "processDirs" "No directories to be processed"; log I "processDirs: No directories to be processed"
 	fi
-
 }
 
 #######################################
