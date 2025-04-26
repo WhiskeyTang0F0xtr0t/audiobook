@@ -229,7 +229,10 @@ check-for-cover () {
 	coverFileName=""
 	if [ -f "${folderPath}"/cover.jpg ] ; then
 		coverFileName="${folderPath}/cover.jpg"
-		output T "Cover" "Cover file found"; log IF "Cover File: ${coverFileName}"
+		output T "Cover" "cover.jpg"; log IF "Cover File: ${coverFileName}"
+	elif [ -f "${folderPath}"/folder.jpg ] ; then
+		coverFileName="${folderPath}/folder.jpg"
+		output T "Cover" "folder.jpg"; log IF "Cover File: ${coverFileName}"
 	else
 		output C "Cover" "Cover file not found."; log ENF "Cover File: ${coverFileName}"
 	fi
