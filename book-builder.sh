@@ -223,7 +223,7 @@ create-metadata() {
 }
 
 #######################################
-# Look for cover.jpg in the book folder
+# Look for cover.jpg or folder.jpg in the book folder
 ####################################### 
 check-for-cover () {
 	coverFileName=""
@@ -443,10 +443,10 @@ process-dirs () {
 
 	if [ "$cleanDirCount" -gt 0 ]; then
 		output T "processDirs" "Book directories to be processed: ${cleanDirCount}"; log I "processDirs: Book directories: ${cleanDirCount}"
-		while IFS= read -r line; do	
+		cat cleanDirs.txt | while IFS= read -r line; do	
 			output T "processDirs" "Processing folder: ${line}"; log I "processDirs: Processing folder: ${line}"
 			process-books "${line}"
-		done < cleanDirs.txt
+		done
 		banner "Cleaning up final temp files.."
 		clean-up cleanDirs.txt
 		banner "All book directories processed"
