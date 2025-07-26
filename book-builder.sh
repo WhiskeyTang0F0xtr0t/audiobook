@@ -429,7 +429,7 @@ process-dirs () {
 	check-dependency ffmpeg
 	check-dependency jq
 	
-	banner "Processing: ${inputPath}"
+	banner "Processing Input Path: ${inputPath}"
 
 	find "${inputPath}" -type d -exec bash -c '
 	  for dir; do
@@ -442,9 +442,9 @@ process-dirs () {
 	cleanDirCount=$(wc -l < cleanDirs.txt)
 
 	if [ "$cleanDirCount" -gt 0 ]; then
-		output T "processDirs" "Book directories to be processed: ${cleanDirCount}"; log I "processDirs: Book directories: ${cleanDirCount}"
+		banner "Book directories to be processed: ${cleanDirCount}"
 		cat cleanDirs.txt | while IFS= read -r line; do	
-			output T "processDirs" "Processing folder: ${line}"; log I "processDirs: Processing folder: ${line}"
+			banner "Processing directory: ${line}"
 			process-books "${line}"
 		done
 		banner "Cleaning up final temp files.."
@@ -452,6 +452,8 @@ process-dirs () {
 		banner "All book directories processed"
 	else
 		output T "processDirs" "No directories to be processed"; log I "processDirs: No directories to be processed"
+		banner "Cleaning up book temp files.."
+		clean-up cleanDirs.txt
 	fi
 }
 
