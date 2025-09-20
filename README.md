@@ -3,7 +3,6 @@
 > 
 > IE - ', ", `, Tab, &, #, * \, /, !
 >
-> I'm working on a function to report on these and possibly replace the offending characters.
 
 # Table of Contents
 - [Overview](#overview)
@@ -22,8 +21,8 @@ Features:
   - If metadata is not available, the final filename will use the enclosing directory's names
 - Add "Cover" to final file if cover.jpg is found.
 - Combine all mp3s in a directory, sorted by name.
-- Convert combined mp3s into m4b file with metata.
-- Cleans up temp files created after each book folder is processed.
+- Convert combined mp3s into m4b file with metadata.
+- Clean up temp files created after each book folder is processed.
 
 > [!NOTE]
 > This does not currently delete the old mp3 files, but I will add the feature in the near future.
@@ -33,6 +32,7 @@ Features:
 ## Requirements
 - Dependencies:
   - ffmpeg
+  - ffprobe
   - jq
 - Folder(s) of audiobook mp3s
 
