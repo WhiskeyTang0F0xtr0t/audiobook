@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ###################################### 
-# wtf-book-builder v1.0
+# wtf-book-builder v1.1
 #
 # Convert folders of mp3 files into an M4B audio with embedded metadata
 #
@@ -14,6 +14,7 @@
 full_filename=$(basename -- "$0")
 short_filename="${full_filename%.*}"
 log_filename="log-${short_filename}.log"
+dependencies=("ffmpeg" "ffprobe" "jq")
 
 #######################################
 # Formatted message logger
@@ -88,13 +89,23 @@ output () {
 # Check for dependencies 
 ####################################### 
 check-dependency() {
-	local dependency="$1"
-	if command -v "$dependency" 1> /dev/null 2> >(log-stream); then
-		output T "checkDependency" "$dependency"; log IF "checkDependency: $dependency"
-	else
-		output C "checkDependency" "$dependency not found"; log ENF "checkDependency: $dependency"
-	  exit 1
-  fi
+	local dependency_list=("$@")
+	depMissing=()
+	for dependency in "${dependency_list[@]}"; do
+		if command -v "$dependency" 1> /dev/null 2> >(log-stream); then
+			log IF "checkDependency: $dependency"
+		else
+			depMissing+=("$dependency"); log ENF "checkDependency: $dependency"
+	  fi
+  done
+	if [ ${#depMissing[@]} -gt 0 ]; then
+    banner "The following dependencies are missing:"
+	    for missing_dep in "${depMissing[@]}"; do
+				output C "checkDependency" "${missing_dep}"
+	    done
+		banner "Please install the missing dependencies and run the script again."
+		exit 1
+	fi
 }
 
 #######################################
@@ -426,9 +437,8 @@ process-dirs () {
 	#clear
 	rm "$log_filename" 1> /dev/null 2> >(log-stream)
 	banner "Checking for dependencies"
-	check-dependency ffmpeg
-	check-dependency jq
-	
+	check-dependency "${dependencies[@]}"
+
 	banner "Processing Input Path: ${inputPath}"
 
 	find "${inputPath}" -type d -exec bash -c '
